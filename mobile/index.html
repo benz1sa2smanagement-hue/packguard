@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PackGuard">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>PackGuard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#111;padding-bottom:80px}
+.top{position:sticky;top:0;z-index:10;background:#0b1020;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.top b{font-size:16px}
+.tabs{display:flex;gap:6px;padding:10px;background:#fff;border-bottom:1px solid #e7eaf0;position:sticky;top:52px;z-index:9;overflow:auto}
+.tabs button{border:0;background:#f1f3f9;padding:10px 14px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.tabs button.on{background:#5b5cf0;color:#fff}
+.page{display:none;padding:14px}.page.on{display:block}
+.card{background:#fff;border:1px solid #e7eaf0;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(17,24,39,.06)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi .card{margin:0}.kpi .n{font-size:26px;font-weight:900;margin-top:4px}.kpi .l{font-size:10px;font-weight:800;color:#667085;text-transform:uppercase}
+input{width:100%;padding:14px;border:1px solid #dfe3ef;border-radius:12px;font-size:16px;font-weight:700;margin:6px 0}
+.btn{border:0;border-radius:12px;padding:14px 16px;font-weight:800;font-size:13px;width:100%;margin-top:8px}
+.btn.p{background:#5b5cf0;color:#fff}.btn.g{background:#f1f3f9;color:#334}
+.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef}
+.mono{font-family:ui-monospace,monospace;font-weight:800;font-size:13px}
+.ok{background:#ecfdf3;color:#166534;padding:12px;border-radius:12px;margin-top:10px;font-weight:700}
+.bad{background:#fef2f2;color:#991b1b;padding:12px;border-radius:12px;margin-top:10px;font-weight:700}
+.wait{background:#f8fafc;color:#667085;padding:12px;border-radius:12px;margin-top:10px}
+.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #eef}
+.thumb{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#f4f4ff,#e8e9ff);display:grid;place-items:center;font-size:10px;font-weight:900;color:#5658dc}
+.check{width:24px;height:24px;border-radius:8px;border:1px solid #d0d5dd;display:grid;place-items:center}
+.check.done{background:#16a34a;color:#fff;border-color:#16a34a}
+.toast{position:fixed;right:12px;bottom:20px;background:#101828;color:#fff;padding:12px 14px;border-radius:12px;font-size:12px;z-index:50}
+.live{display:flex;align-items:center;gap:6px;font-size:11px}.dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
+</style>
+</head>
+<body>
+<div class="top"><div><b>PackGuard</b><div style="font-size:10px;opacity:.65">PACKING VERIFICATION</div></div><div class="live"><span class="dot"></span> Ready</div></div>
+<div class="tabs">
+<button class="on" data-t="home">Home</button>
+<button data-t="pack">Pack</button>
+<button data-t="orders">Orders</button>
+<button data-t="err">Errors</button>
+</div>
+<div id="home" class="page on">
+<div class="kpi">
+<div class="card"><div class="l">Orders</div><div class="n" id="kOrders">0</div></div>
+<div class="card"><div class="l">Packed</div><div class="n" id="kPacked">0</div></div>
+<div class="card"><div class="l">Wrong blocked</div><div class="n" id="kWrong">0</div></div>
+<div class="card"><div class="l">Protected</div><div class="n" id="kProt">0</div></div>
+</div>
+<div class="card" style="margin-top:12px"><b>เริ่มแพ็ก</b><div style="font-size:12px;color:#667;margin:6px 0">สแกนฉลาก → ตรวจสินค้า → บล็อกของผิด</div><button class="btn p" onclick="go('pack')">Start packing</button></div>
+<div class="card"><b>เพิ่มลงหน้าจอโฮม (มือถือ)</b><div style="font-size:12px;color:#667;margin-top:6px">Safari: Share → Add to Home Screen<br>Chrome: เมนู ⋮ → Install app</div></div>
+</div>
+<div id="pack" class="page">
+<div class="card">
+<b>1. สแกนฉลาก / Tracking</b>
+<input id="orderIn" placeholder="Scan Tracking / Order ID" enterkeyhint="go" autocomplete="off">
+<button class="btn p" onclick="loadOrder()">Load order</button>
+</div>
+<div class="card" id="orderBox" style="display:none">
+<div style="display:flex;justify-content:space-between"><div class="mono" id="oid"></div><span id="ost" style="font-size:11px;font-weight:800"></span></div>
+<div style="font-size:12px;color:#667;margin:4px 0 8px" id="ometa"></div>
+<div id="items"></div>
+<b style="display:block;margin-top:12px">2. สแกนบาร์โค้ดสินค้า</b>
+<input id="skuIn" placeholder="Scan product barcode / SKU" enterkeyhint="go" autocomplete="off">
+<button class="btn p" onclick="verify()">Verify</button>
+<div id="fb" class="wait">Waiting for product scan…</div>
+<button class="btn p" id="doneBtn" style="margin-top:12px;opacity:.4" disabled onclick="completeOrder()">✓ Complete packing</button>
+</div>
+</div>
+<div id="orders" class="page">
+<div class="card"><b>รายการออเดอร์ (Demo)</b><div id="olist"></div>
+<button class="btn g" onclick="resetDemo()">Reset demo data</button></div>
+</div>
+<div id="err" class="page">
+<div class="card"><b>Wrong scans blocked</b><div id="elist" style="margin-top:8px;font-size:13px"></div></div>
+</div>
+<script>
+const SAMPLE=[
+{id:'ML-260925-001',tracking:'SPX-TEST-1001',customer:'Demo A',platform:'Shopee',items:[{sku:'KIY-ROLL-250',name:'Kiyomi Roll 250m',qty:2,barcode:'885900100001'},{sku:'KIY-PULL-1150',name:'Kiyomi Pull 1150 Sheets',qty:1,barcode:'885900100002'}],completed:false},
+{id:'ML-260925-002',tracking:'JT-TEST-1002',customer:'Demo B',platform:'TikTok Shop',items:[{sku:'KIY-KITCHEN-400',name:'Kiyomi Kitchen 400 Sheets',qty:2,barcode:'885900100003'}],completed:false},
+{id:'ML-260925-003',tracking:'KEX-TEST-1003',customer:'Demo C',platform:'Lazada',items:[{sku:'KIY-ROLL-250',name:'Kiyomi Roll 250m',qty:1,barcode:'885900100001'}],completed:false}
+];
+let orders=JSON.parse(localStorage.getItem('pg_m_orders')||'null')||SAMPLE;
+let events=JSON.parse(localStorage.getItem('pg_m_events')||'[]');
+let progress=JSON.parse(localStorage.getItem('pg_m_progress')||'{}');
+let current=null,lastScan={v:'',t:0};
+function save(){localStorage.setItem('pg_m_orders',JSON.stringify(orders));localStorage.setItem('pg_m_events',JSON.stringify(events));localStorage.setItem('pg_m_progress',JSON.stringify(progress))}
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+function go(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===id));document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===id));if(id==='home')renderKpis();if(id==='orders')renderOrders();if(id==='err')renderErrors()}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+function wrongCount(){return events.filter(e=>e.type==='wrong').length}
+function protectedCount(){return new Set(events.filter(e=>e.type==='wrong').map(e=>e.orderId)).size}
+function renderKpis(){document.getElementById('kOrders').textContent=orders.length;document.getElementById('kPacked').textContent=orders.filter(o=>o.completed).length;document.getElementById('kWrong').textContent=wrongCount();document.getElementById('kProt').textContent=protectedCount()}
+function dedupe(v){const n=Date.now();if(lastScan.v===v&&n-lastScan.t<800)return false;lastScan={v,t:n};return true}
+function loadOrder(){const v=document.getElementById('orderIn').value.trim();if(!v||!dedupe('o:'+v))return;const o=orders.find(x=>x.id.toLowerCase()===v.toLowerCase()||x.tracking.toLowerCase()===v.toLowerCase());if(!o){toast('ไม่พบออเดอร์');return}current=o;document.getElementById('orderBox').style.display='block';document.getElementById('oid').textContent=o.id;document.getElementById('ometa').textContent=o.customer+' · '+o.platform+' · '+o.tracking;renderItems();document.getElementById('fb').className='wait';document.getElementById('fb').textContent='Waiting for product scan…';document.getElementById('skuIn').focus();toast('Loaded '+o.id)}
+function renderItems(){if(!current)return;const p=progress[current.id]||{};const box=document.getElementById('items');box.innerHTML=current.items.map(it=>{const n=p[it.sku]||0;const done=n>=it.qty;return '<div class="item"><div class="thumb">'+it.sku.split('-').pop().slice(0,4)+'</div><div style="flex:1"><div style="font-weight:800;font-size:13px">'+it.name+'</div><div style="font-size:11px;color:#667">'+it.sku+' · '+it.barcode+'</div></div><div class="mono">'+n+'/'+it.qty+'</div><div class="check '+(done?'done':'')+'">'+(done?'✓':'')+'</div></div>'}).join('');const all=current.items.every(it=>(p[it.sku]||0)>=it.qty);const btn=document.getElementById('doneBtn');btn.disabled=!all||current.completed;btn.style.opacity=(!all||current.completed)?.4:1;document.getElementById('ost').textContent=current.completed?'Packed':(events.filter(e=>e.type==='wrong'&&e.orderId===current.id).length?'Needs check':'Ready')}
+function verify(){const v=document.getElementById('skuIn').value.trim();if(!v||!current||!dedupe('s:'+v))return;if(current.completed){toast('แพ็กแล้ว');return}const p=progress[current.id]||{};const it=current.items.find(x=>x.sku.toUpperCase()===v.toUpperCase()||x.barcode===v);const already=it&&(p[it.sku]||0)>=it.qty;const fb=document.getElementById('fb');if(!it||already){events.push({type:'wrong',orderId:current.id,value:v,time:new Date().toISOString()});save();fb.className='bad';fb.textContent='✕ WRONG PRODUCT — BLOCKED\nScanned: '+v;try{navigator.vibrate&&navigator.vibrate([80,40,80])}catch(e){}toast('บล็อกสินค้าผิด');document.getElementById('skuIn').value='';renderKpis();return}p[it.sku]=(p[it.sku]||0)+1;progress[current.id]=p;events.push({type:'ok',orderId:current.id,value:v,time:new Date().toISOString()});save();fb.className='ok';fb.textContent='✓ CORRECT · '+it.sku+' · '+p[it.sku]+'/'+it.qty;toast('ถูกต้อง');document.getElementById('skuIn').value='';renderItems();renderKpis()}
+function completeOrder(){if(!current)return;const p=progress[current.id]||{};if(!current.items.every(it=>(p[it.sku]||0)>=it.qty)){toast('สแกนไม่ครบ');return}current.completed=true;save();toast('แพ็กเสร็จ · '+current.id);renderItems();renderKpis();go('home')}
+function renderOrders(){document.getElementById('olist').innerHTML=orders.map(o=>'<div class="row"><div><div class="mono">'+o.id+'</div><div style="font-size:11px;color:#667">'+o.tracking+'</div></div><button class="btn g" style="width:auto;padding:8px 12px;margin:0" onclick="document.getElementById(\'orderIn\').value=\''+o.tracking+'\';go(\'pack\');loadOrder()">Open</button></div>').join('')}
+function renderErrors(){const w=events.filter(e=>e.type==='wrong').slice().reverse();document.getElementById('elist').innerHTML=w.length?w.map(e=>'<div class="row"><div><div class="mono">'+e.orderId+'</div><div style="font-size:11px;color:#991b1b">Scanned '+e.value+'</div></div><div style="font-size:11px">'+new Date(e.time).toLocaleString()+'</div></div>').join(''):'<div style="color:#166534;font-weight:700">ยังไม่มี error</div>'}
+function resetDemo(){localStorage.removeItem('pg_m_orders');localStorage.removeItem('pg_m_events');localStorage.removeItem('pg_m_progress');location.reload()}
+document.getElementById('orderIn').onkeydown=e=>{if(e.key==='Enter')loadOrder()};
+document.getElementById('skuIn').onkeydown=e=>{if(e.key==='Enter')verify()};
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+renderKpis();
+</script>
+</body>
+</html>
